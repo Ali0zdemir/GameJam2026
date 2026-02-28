@@ -10,15 +10,15 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: -8679921383154817045, guid: 18b8e38a97be71a4cabff18a09b190e7, type: 3}
       propertyPath: m_LocalScale.x
-      value: 0.17
+      value: 0.29
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 18b8e38a97be71a4cabff18a09b190e7, type: 3}
       propertyPath: m_LocalScale.y
-      value: 0.17
+      value: 0.29
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 18b8e38a97be71a4cabff18a09b190e7, type: 3}
       propertyPath: m_LocalScale.z
-      value: 0.17
+      value: 0.29
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 18b8e38a97be71a4cabff18a09b190e7, type: 3}
       propertyPath: m_LocalPosition.x
@@ -93,6 +93,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 18b8e38a97be71a4cabff18a09b190e7, type: 3}
       insertIndex: -1
       addedObject: {fileID: 2577345319206327246}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 18b8e38a97be71a4cabff18a09b190e7, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -7943655509760378147}
   m_SourcePrefab: {fileID: 100100000, guid: 18b8e38a97be71a4cabff18a09b190e7, type: 3}
 --- !u!1 &2893139527681467843 stripped
 GameObject:
@@ -160,6 +163,24 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   lifetime: 3
-  damage: 25
+  damage: 50
   hitEffect: {fileID: 0}
+  maxDistance: 24
   playerTag: Player
+--- !u!114 &-7943655509760378147
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2893139527681467843}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9a161655c09f89c4d80900031e1b0ff8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  trailSprite: {fileID: 7482667652216324306, guid: 1837b78bca2f7ca489d8e0d0e1d274b7, type: 3}
+  spawnInterval: 0.05
+  trailLifetime: 0.6
+  trailSize: 0.05
+  trailColor: {r: 0.047058832, g: 0.49019608, b: 0.33171564, a: 0.7372549}

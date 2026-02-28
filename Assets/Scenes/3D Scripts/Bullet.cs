@@ -7,12 +7,19 @@ public class Bullet : MonoBehaviour
     public float damage = 25f;
     public GameObject hitEffect;
 
+    [Header("Mesafe")]
+    public float maxDistance = 50f;
+
     [Header("Layer")]
     public string playerTag = "Player";
+
+    Vector3 startPosition;
+    bool hasHit = false; // Çarpma kilidi
 
     void Start()
     {
         Destroy(gameObject, lifetime);
+        startPosition = transform.position;
 
         GameObject player = GameObject.FindWithTag(playerTag);
         if (player)
@@ -24,20 +31,39 @@ public class Bullet : MonoBehaviour
         }
     }
 
+    void Update()
+    {
+        if (Vector3.Distance(startPosition, transform.position) >= maxDistance)
+            Destroy(gameObject);
+    }
+
     void OnCollisionEnter(Collision col)
     {
+        if (hasHit) return; // Zaten çarptıysa çık
         if (col.gameObject.CompareTag(playerTag)) return;
 
         if (col.gameObject.CompareTag("Enemy"))
         {
-            EnemyHealth enemy = col.gameObject.GetComponent<EnemyHealth>();
-            if (enemy) enemy.TakeDamage(damage);
+            EnemyAI_Armored armored = col.gameObject.GetComponentInParent<EnemyAI_Armored>();
+            if (armored != null && armored.isInvulnerable)
+            {
+                hasHit = true;
+                Destroy(gameObject);
+                return;
+            }
+
+            EnemyHealth enemy = col.gameObject.GetComponentInParent<EnemyHealth>();
+            if (enemy != null)
+            {
+                hasHit = true;
+                enemy.TakeDamage(damage);
+            }
         }
 
-        // Enemy olsun olmasın HER ÇARPMADA yok ol
         if (hitEffect)
             Instantiate(hitEffect, transform.position, Quaternion.LookRotation(col.contacts[0].normal));
 
+        hasHit = true;
         Destroy(gameObject);
     }
 }

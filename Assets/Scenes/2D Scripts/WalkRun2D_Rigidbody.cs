@@ -44,6 +44,19 @@ public class WalkRun2D_Rigidbody : MonoBehaviour
     [Header("Knockback")]
     public float knockbackDuration = 0.2f;
 
+    // ==========================================
+    // SAVAŞ (MELEE) AYARLARI
+    // ==========================================
+    [Header("Melee Attack")]
+    public Transform attackPoint;      // Kılıcın vuracağı merkez nokta
+    public float attackRange = 1.2f;   // Kılıcın menzili (yarıçapı)
+    public LayerMask enemyLayers;      // Hasar verebileceğimiz katman (Düşmanlar)
+    public float attackRate = 2f;      // Saniyede kaç kere vurabilir (2 = yarım saniyede bir)
+
+    private float nextAttackTime = 0f;
+    private bool isFacingRight = true; // Karakterin yönünü takip etmek için
+    // ==========================================
+
     Rigidbody2D rb;
     float inputX;
     bool isGrounded;
@@ -90,6 +103,30 @@ public class WalkRun2D_Rigidbody : MonoBehaviour
             currentAirControlTimer -= Time.deltaTime;
 
         inputX = Input.GetAxisRaw("Horizontal");
+
+        // ==========================================
+        // YÖN DÖNDÜRME (FLIP) KONTROLÜ
+        // ==========================================
+        if (inputX > 0 && !isFacingRight)
+        {
+            Flip();
+        }
+        else if (inputX < 0 && isFacingRight)
+        {
+            Flip();
+        }
+
+        // ==========================================
+        // SALDIRI (ATTACK) KONTROLÜ
+        // ==========================================
+        if (Time.time >= nextAttackTime)
+        {
+            if (Input.GetMouseButtonDown(0)) // Sol Tık
+            {
+                Attack();
+                nextAttackTime = Time.time + 1f / attackRate;
+            }
+        }
 
         // Dash
         if (Input.GetKeyDown(runKey) && !isDashing && dashCooldownTimer <= 0f && inputX != 0f)
@@ -296,5 +333,44 @@ public class WalkRun2D_Rigidbody : MonoBehaviour
         foreach (JumpOrb orb in usedOrbs)
             if (orb != null) orb.ActivateOrb();
         usedOrbs.Clear();
+    }
+
+    // ==========================================
+    // SALDIRI VE DÖNÜŞ METOTLARI
+    // ==========================================
+    void Attack()
+    {
+        if (attackPoint == null) return;
+
+        // İleride animasyon ekleneceğinde burayı açacağız:
+        // anim.SetTrigger("Attack");
+
+        Collider2D[] hitEnemies = Physics2D.OverlapCircleAll(attackPoint.position, attackRange, enemyLayers);
+
+        foreach (Collider2D enemy in hitEnemies)
+        {
+            EnemyHealth2D enemyHealth = enemy.GetComponent<EnemyHealth2D>();
+
+            if (enemyHealth != null)
+            {
+                enemyHealth.TakeHit();
+                Debug.Log(enemy.name + " tek yedi ve öldü!");
+            }
+        }
+    }
+
+    void Flip()
+    {
+        isFacingRight = !isFacingRight;
+        Vector3 currentScale = transform.localScale;
+        currentScale.x *= -1;
+        transform.localScale = currentScale;
+    }
+
+    void OnDrawGizmosSelected()
+    {
+        if (attackPoint == null) return;
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(attackPoint.position, attackRange);
     }
 }
