@@ -8,6 +8,7 @@ TagManager:
   - Enemy
   - Wall
   - SpawnPoint
+  - Boss
   layers:
   - Default
   - TransparentFX

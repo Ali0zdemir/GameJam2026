@@ -38,32 +38,45 @@ public class Bullet : MonoBehaviour
     }
 
     void OnCollisionEnter(Collision col)
+{
+    if (hasHit) return;
+    if (col.gameObject.CompareTag(playerTag)) return;
+
+    if (col.gameObject.CompareTag("Enemy"))
     {
-        if (hasHit) return; // Zaten çarptıysa çık
-        if (col.gameObject.CompareTag(playerTag)) return;
-
-        if (col.gameObject.CompareTag("Enemy"))
+        // Armored kontrolü
+        EnemyAI_Armored armored = col.gameObject.GetComponentInParent<EnemyAI_Armored>();
+        if (armored != null && armored.isInvulnerable)
         {
-            EnemyAI_Armored armored = col.gameObject.GetComponentInParent<EnemyAI_Armored>();
-            if (armored != null && armored.isInvulnerable)
-            {
-                hasHit = true;
-                Destroy(gameObject);
-                return;
-            }
-
-            EnemyHealth enemy = col.gameObject.GetComponentInParent<EnemyHealth>();
-            if (enemy != null)
-            {
-                hasHit = true;
-                enemy.TakeDamage(damage);
-            }
+            hasHit = true;
+            Destroy(gameObject);
+            return;
         }
 
-        if (hitEffect)
-            Instantiate(hitEffect, transform.position, Quaternion.LookRotation(col.contacts[0].normal));
-
-        hasHit = true;
-        Destroy(gameObject);
+        // Normal enemy
+        EnemyHealth enemy = col.gameObject.GetComponentInParent<EnemyHealth>();
+        if (enemy != null)
+        {
+            hasHit = true;
+            enemy.TakeDamage(damage);
+        }
     }
+
+    // Boss'a çarptıysa
+    if (col.gameObject.CompareTag("Boss"))
+    {
+        BossAI boss = col.gameObject.GetComponentInParent<BossAI>();
+        if (boss != null)
+        {
+            hasHit = true;
+            boss.TakeDamage(damage);
+        }
+    }
+
+    if (hitEffect)
+        Instantiate(hitEffect, transform.position, Quaternion.LookRotation(col.contacts[0].normal));
+
+    hasHit = true;
+    Destroy(gameObject);
+}
 }

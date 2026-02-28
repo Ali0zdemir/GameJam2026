@@ -7,12 +7,15 @@ public class Pistol : MonoBehaviour
     public Transform firePoint;
     public GameObject bulletPrefab;
     public float fireForce = 30f;
-    public float fireRate = 0.12f; // Boltgun hissi için hızlı
+    public float fireRate = 0.12f;
 
     [Header("Seri Atış")]
-    public int burstCount = 3;           // Kaç mermi art arda
-    public float burstInterval = 0.08f;  // Mermiler arası süre
-    public float burstCooldown = 0.5f;   // Burst'ler arası bekleme
+    public int burstCount = 3;
+    public float burstInterval = 0.08f;
+    public float burstCooldown = 0.5f;
+
+    [Header("Ses")]
+    public float volume = 1f;
 
     [Header("Pozisyon Recoil")]
     public float recoilAmount = 0.05f;
@@ -25,8 +28,8 @@ public class Pistol : MonoBehaviour
     public float returnRotationSpeed = 5f;
 
     [Header("Ekran Sarsıntısı")]
-    public float shakeAmount = 0.05f;      // Sarsıntı şiddeti
-    public float shakeDuration = 0.1f;     // Sarsıntı süresi
+    public float shakeAmount = 0.05f;
+    public float shakeDuration = 0.1f;
 
     AudioSource audioSource;
     float nextFireTime;
@@ -46,23 +49,26 @@ public class Pistol : MonoBehaviour
     {
         originalPosition = transform.localPosition;
         originalRotation = transform.localRotation;
+
         audioSource = GetComponent<AudioSource>();
+        if (audioSource != null)
+            audioSource.playOnAwake = false;
 
         mainCam = Camera.main;
         if (mainCam) camOriginalPos = mainCam.transform.localPosition;
     }
 
     void Update()
-{
-    if (Input.GetMouseButton(0) && Time.time >= nextFireTime && !isBursting)
     {
-        StartCoroutine(BurstFire());
-        nextFireTime = Time.time + burstCooldown;
-    }
+        if (Input.GetMouseButton(0) && Time.time >= nextFireTime && !isBursting)
+        {
+            StartCoroutine(BurstFire());
+            nextFireTime = Time.time + burstCooldown;
+        }
 
-    HandleRecoil();
-    HandleScreenShake();
-}
+        HandleRecoil();
+        HandleScreenShake();
+    }
 
     IEnumerator BurstFire()
     {
@@ -78,59 +84,58 @@ public class Pistol : MonoBehaviour
     }
 
     void Shoot()
-{
-    if (!bulletPrefab || !firePoint) return;
+    {
+        if (!bulletPrefab || !firePoint) return;
 
-    // Kameranın tam ortasından ileriye Raycast at
-    Camera cam = Camera.main;
-    Vector3 targetPoint;
+        if (audioSource != null && audioSource.clip != null)
+            audioSource.PlayOneShot(audioSource.clip, volume);
 
-    Ray ray = cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
-    if (Physics.Raycast(ray, out RaycastHit hit, 100f))
-        targetPoint = hit.point;
-    else
-        targetPoint = ray.GetPoint(100f);
+        Camera cam = Camera.main;
+        Vector3 targetPoint;
 
-    // Mermiyi firePoint'ten oluştur ama hedefe doğru yönlendir
-    Vector3 aimDir = (targetPoint - firePoint.position).normalized;
-    GameObject bullet = Instantiate(bulletPrefab, firePoint.position, Quaternion.LookRotation(aimDir));
+        Ray ray = cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+        if (Physics.Raycast(ray, out RaycastHit hit, 100f))
+            targetPoint = hit.point;
+        else
+            targetPoint = ray.GetPoint(100f);
 
-    Rigidbody rb = bullet.GetComponent<Rigidbody>();
-    if (rb) rb.AddForce(aimDir * fireForce, ForceMode.Impulse);
+        Vector3 aimDir = (targetPoint - firePoint.position).normalized;
+        GameObject bullet = Instantiate(bulletPrefab, firePoint.position, Quaternion.LookRotation(aimDir));
 
-    isRecoiling = true;
-    isRotationRecoiling = true;
-    StartScreenShake();
-}
+        Rigidbody rb = bullet.GetComponent<Rigidbody>();
+        if (rb) rb.AddForce(aimDir * fireForce, ForceMode.Impulse);
+
+        isRecoiling = true;
+        isRotationRecoiling = true;
+        StartScreenShake();
+    }
 
     void HandleRecoil()
-{
-    // Pozisyon recoil - geri, sağa ve aşağı
-    if (isRecoiling)
     {
-        Vector3 recoilTarget = originalPosition + new Vector3(recoilAmount * 0.5f, -recoilAmount * 0.3f, -recoilAmount);
-        transform.localPosition = Vector3.Lerp(transform.localPosition, recoilTarget, recoilSpeed * Time.deltaTime);
-        if (Vector3.Distance(transform.localPosition, recoilTarget) < 0.001f)
-            isRecoiling = false;
-    }
-    else
-    {
-        transform.localPosition = Vector3.Lerp(transform.localPosition, originalPosition, returnSpeed * Time.deltaTime);
-    }
+        if (isRecoiling)
+        {
+            Vector3 recoilTarget = originalPosition + new Vector3(recoilAmount * 0.5f, -recoilAmount * 0.3f, -recoilAmount);
+            transform.localPosition = Vector3.Lerp(transform.localPosition, recoilTarget, recoilSpeed * Time.deltaTime);
+            if (Vector3.Distance(transform.localPosition, recoilTarget) < 0.001f)
+                isRecoiling = false;
+        }
+        else
+        {
+            transform.localPosition = Vector3.Lerp(transform.localPosition, originalPosition, returnSpeed * Time.deltaTime);
+        }
 
-    // Rotasyon recoil
-    if (isRotationRecoiling)
-    {
-        Quaternion recoilTarget = originalRotation * Quaternion.Euler(-recoilRotationAmount, recoilRotationAmount * 0.3f, recoilRotationAmount * 0.2f);
-        transform.localRotation = Quaternion.Lerp(transform.localRotation, recoilTarget, recoilRotationSpeed * Time.deltaTime);
-        if (Quaternion.Angle(transform.localRotation, recoilTarget) < 0.1f)
-            isRotationRecoiling = false;
+        if (isRotationRecoiling)
+        {
+            Quaternion recoilTarget = originalRotation * Quaternion.Euler(-recoilRotationAmount, recoilRotationAmount * 0.3f, recoilRotationAmount * 0.2f);
+            transform.localRotation = Quaternion.Lerp(transform.localRotation, recoilTarget, recoilRotationSpeed * Time.deltaTime);
+            if (Quaternion.Angle(transform.localRotation, recoilTarget) < 0.1f)
+                isRotationRecoiling = false;
+        }
+        else
+        {
+            transform.localRotation = Quaternion.Lerp(transform.localRotation, originalRotation, returnRotationSpeed * Time.deltaTime);
+        }
     }
-    else
-    {
-        transform.localRotation = Quaternion.Lerp(transform.localRotation, originalRotation, returnRotationSpeed * Time.deltaTime);
-    }
-}
 
     void StartScreenShake()
     {
@@ -145,7 +150,6 @@ public class Pistol : MonoBehaviour
         if (shakeTimer > 0f)
         {
             shakeTimer -= Time.deltaTime;
-
             float x = Random.Range(-shakeAmount, shakeAmount);
             float y = Random.Range(-shakeAmount, shakeAmount);
             mainCam.transform.localPosition = camOriginalPos + new Vector3(x, y, 0f);
