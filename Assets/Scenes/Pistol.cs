@@ -17,6 +17,10 @@ public class Pistol : MonoBehaviour
     [Header("Ses")]
     public float volume = 1f;
 
+    [Header("Muzzle Flash")]
+    public GameObject muzzleFlash;
+    public float muzzleFlashDuration = 0.05f;
+
     [Header("Pozisyon Recoil")]
     public float recoilAmount = 0.05f;
     public float recoilSpeed = 8f;
@@ -56,6 +60,8 @@ public class Pistol : MonoBehaviour
 
         mainCam = Camera.main;
         if (mainCam) camOriginalPos = mainCam.transform.localPosition;
+
+        if (muzzleFlash != null) muzzleFlash.SetActive(false);
     }
 
     void Update()
@@ -90,6 +96,13 @@ public class Pistol : MonoBehaviour
         if (audioSource != null && audioSource.clip != null)
             audioSource.PlayOneShot(audioSource.clip, volume);
 
+        if (muzzleFlash != null)
+        {
+            muzzleFlash.SetActive(true);
+            CancelInvoke(nameof(HideMuzzleFlash));
+            Invoke(nameof(HideMuzzleFlash), muzzleFlashDuration);
+        }
+
         Camera cam = Camera.main;
         Vector3 targetPoint;
 
@@ -108,6 +121,12 @@ public class Pistol : MonoBehaviour
         isRecoiling = true;
         isRotationRecoiling = true;
         StartScreenShake();
+    }
+
+    void HideMuzzleFlash()
+    {
+        if (muzzleFlash != null)
+            muzzleFlash.SetActive(false);
     }
 
     void HandleRecoil()

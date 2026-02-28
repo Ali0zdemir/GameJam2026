@@ -1,34 +1,30 @@
 using UnityEngine;
+using System.Collections;
 
 public class Bullet : MonoBehaviour
 {
-    [Header("Mermi")]
+    [Header("Mermi Ayarları")]
     public float lifetime = 3f;
     public float damage = 25f;
-    public GameObject hitEffect;
+    public GameObject hitEffect; 
+    public GameObject bloodPrefab;
 
-    [Header("Mesafe")]
+    [Header("Kan Efekti Ayarları")]
+    public int bloodCount = 5;
+    public float bloodInterval = 0.05f;
+    public float spreadAmount = 0.2f;
+
+    [Header("Mesafe & Etiket")]
     public float maxDistance = 50f;
-
-    [Header("Layer")]
     public string playerTag = "Player";
 
-    Vector3 startPosition;
-    bool hasHit = false; // Çarpma kilidi
+    private Vector3 startPosition;
+    private bool hasHit = false;
 
     void Start()
     {
-        Destroy(gameObject, lifetime);
         startPosition = transform.position;
-
-        GameObject player = GameObject.FindWithTag(playerTag);
-        if (player)
-        {
-            Collider playerCollider = player.GetComponent<Collider>();
-            Collider bulletCollider = GetComponent<Collider>();
-            if (playerCollider && bulletCollider)
-                Physics.IgnoreCollision(bulletCollider, playerCollider);
-        }
+        Destroy(gameObject, lifetime);
     }
 
     void Update()
@@ -38,45 +34,93 @@ public class Bullet : MonoBehaviour
     }
 
     void OnCollisionEnter(Collision col)
-{
-    if (hasHit) return;
-    if (col.gameObject.CompareTag(playerTag)) return;
-
-    if (col.gameObject.CompareTag("Enemy"))
     {
-        // Armored kontrolü
-        EnemyAI_Armored armored = col.gameObject.GetComponentInParent<EnemyAI_Armored>();
-        if (armored != null && armored.isInvulnerable)
+        if (hasHit) return;
+        if (col.gameObject.CompareTag(playerTag) || col.gameObject.CompareTag("Bullet")) return;
+
+        hasHit = true;
+
+        if (col.gameObject.CompareTag("Enemy") || col.gameObject.CompareTag("Boss"))
         {
-            hasHit = true;
-            Destroy(gameObject);
-            return;
+            HandleDamage(col.gameObject);
+            
+            // Kan efektini başlatmak için merminin "konumunu" ve "çarptığı objeyi" kullanıyoruz
+            // Mermi yok olacağı için Coroutine'i sahnede yaşayan bir objede (Düşmanda) başlatıyoruz
+            if (bloodPrefab != null)
+            {
+                // Düşmanın üzerinde bir script aracılığıyla veya boş bir obje yaratarak efekti başlat
+                SpawnBloodIndependent(col);
+            }
+        }
+        else
+        {
+            if (hitEffect)
+                Instantiate(hitEffect, col.contacts[0].point, Quaternion.LookRotation(col.contacts[0].normal));
         }
 
-        // Normal enemy
-        EnemyHealth enemy = col.gameObject.GetComponentInParent<EnemyHealth>();
-        if (enemy != null)
-        {
-            hasHit = true;
-            enemy.TakeDamage(damage);
-        }
+        // MERMİYİ ANINDA YOK ET
+        Destroy(gameObject);
     }
 
-    // Boss'a çarptıysa
-    if (col.gameObject.CompareTag("Boss"))
+    // Bu fonksiyon mermiden bağımsız objeler oluşturur
+    void SpawnBloodIndependent(Collision col)
     {
-        BossAI boss = col.gameObject.GetComponentInParent<BossAI>();
-        if (boss != null)
-        {
-            hasHit = true;
-            boss.TakeDamage(damage);
-        }
+        ContactPoint contact = col.contacts[0];
+        
+        // Boş bir obje oluşturup kan efektini mermiden bağımsız olarak ona devrediyoruz
+        GameObject bloodManager = new GameObject("BloodEffect_Temp");
+        bloodManager.transform.position = contact.point;
+        
+        // Bu geçici objeye bir script ekleyip efektleri o objenin yönetmesini sağlıyoruz
+        BloodEffectTask task = bloodManager.AddComponent<BloodEffectTask>();
+        task.StartEffect(bloodPrefab, col, bloodCount, bloodInterval, spreadAmount);
     }
 
-    if (hitEffect)
-        Instantiate(hitEffect, transform.position, Quaternion.LookRotation(col.contacts[0].normal));
+    void HandleDamage(GameObject obj)
+    {
+        var enemy = obj.GetComponentInParent<EnemyHealth>();
+        if (enemy != null) enemy.TakeDamage(damage);
 
-    hasHit = true;
-    Destroy(gameObject);
+        var boss = obj.GetComponentInParent<BossAI>();
+        if (boss != null) boss.TakeDamage(damage);
+
+        if (CrosshairHitIndicator.Instance != null)
+            CrosshairHitIndicator.Instance.ShowHit();
+    }
 }
+
+// BU AYRI BİR CLASS / DOSYA OLABİLİR VEYA AYNI DOSYANIN ALTINA EKLEYEBİLİRSİN
+public class BloodEffectTask : MonoBehaviour
+{
+    public void StartEffect(GameObject prefab, Collision col, int count, float interval, float spread)
+    {
+        StartCoroutine(Process(prefab, col, count, interval, spread));
+    }
+
+    IEnumerator Process(GameObject prefab, Collision col, int count, float interval, float spread)
+    {
+        ContactPoint contact = col.contacts[0];
+        Transform enemyTransform = col.transform;
+
+        for (int i = 0; i < count; i++)
+        {
+            if (enemyTransform == null) break;
+
+            Vector3 randomOffset = Random.insideUnitSphere * spread;
+            GameObject blood = Instantiate(prefab, contact.point + randomOffset, Quaternion.LookRotation(contact.normal));
+            
+            blood.transform.SetParent(enemyTransform);
+            blood.transform.Rotate(Vector3.forward, Random.Range(0, 360));
+            
+            // Kan sprite'ında collider varsa kapat
+            Collider c = blood.GetComponent<Collider>();
+            if (c) c.enabled = false;
+
+            Destroy(blood, 1.5f);
+            yield return new WaitForSeconds(interval);
+        }
+        
+        // İşlem bitince bu geçici yöneticiyi de yok et
+        Destroy(gameObject);
+    }
 }

@@ -12,9 +12,7 @@ public class WalkRun2D_Rigidbody : MonoBehaviour
     [Header("Jump")]
     public bool enableJump = true;
     public float jumpForce = 12f;
-    [Tooltip("Yüksek değer = daha hızlı düşer. Önerilen: 2-5")]
     public float fallMultiplier = 3f;
-    [Tooltip("Zıplama yukarı çıkışı çarpanı. Önerilen: 1-3")]
     public float lowJumpMultiplier = 2f;
 
     [Header("Dash")]
@@ -44,39 +42,34 @@ public class WalkRun2D_Rigidbody : MonoBehaviour
     [Header("Knockback")]
     public float knockbackDuration = 0.2f;
 
-    // ==========================================
-    // SAVAŞ (MELEE) AYARLARI
-    // ==========================================
     [Header("Melee Attack")]
-    public Transform attackPoint;      // Kılıcın vuracağı merkez nokta
-    public float attackRange = 1.2f;   // Kılıcın menzili (yarıçapı)
-    public LayerMask enemyLayers;      // Hasar verebileceğimiz katman (Düşmanlar)
-    public float attackRate = 2f;      // Saniyede kaç kere vurabilir (2 = yarım saniyede bir)
+    public Transform attackPoint;
+    public float attackRange = 1.2f;
+    public LayerMask enemyLayers;
+    public float attackRate = 2f;
+
+    [Header("Animation")]
+    public Animator anim;
 
     private float nextAttackTime = 0f;
-    private bool isFacingRight = true; // Karakterin yönünü takip etmek için
-    // ==========================================
+    private bool isFacingRight = true;
 
     Rigidbody2D rb;
     float inputX;
     bool isGrounded;
 
-    // Dash
     bool isDashing;
     float dashTimer;
     float dashCooldownTimer;
     float dashDirection;
 
-    // Invincibility & Knockback
     bool isInvincible;
     bool isKnockedBack;
     float knockbackTimer;
 
-    // Jump Orb
     JumpOrb currentOrb = null;
     List<JumpOrb> usedOrbs = new List<JumpOrb>();
 
-    // Wall
     bool isWalled;
     int wallDirection;
     bool isWallSliding;
@@ -104,31 +97,18 @@ public class WalkRun2D_Rigidbody : MonoBehaviour
 
         inputX = Input.GetAxisRaw("Horizontal");
 
-        // ==========================================
-        // YÖN DÖNDÜRME (FLIP) KONTROLÜ
-        // ==========================================
-        if (inputX > 0 && !isFacingRight)
-        {
-            Flip();
-        }
-        else if (inputX < 0 && isFacingRight)
-        {
-            Flip();
-        }
+        if (inputX > 0 && !isFacingRight) Flip();
+        else if (inputX < 0 && isFacingRight) Flip();
 
-        // ==========================================
-        // SALDIRI (ATTACK) KONTROLÜ
-        // ==========================================
         if (Time.time >= nextAttackTime)
         {
-            if (Input.GetMouseButtonDown(0)) // Sol Tık
+            if (Input.GetMouseButtonDown(0))
             {
                 Attack();
                 nextAttackTime = Time.time + 1f / attackRate;
             }
         }
 
-        // Dash
         if (Input.GetKeyDown(runKey) && !isDashing && dashCooldownTimer <= 0f && inputX != 0f)
         {
             isDashing = true;
@@ -142,9 +122,20 @@ public class WalkRun2D_Rigidbody : MonoBehaviour
 
         CheckWallSliding();
         HandleJump();
+        UpdateAnimations();
 
         if (Input.GetKeyDown(KeyCode.K))
             TakeDamage(10f);
+    }
+
+    void UpdateAnimations()
+    {
+        if (anim == null) return;
+
+        anim.SetBool("isGrounded", isGrounded);
+        anim.SetBool("isWallSliding", isWallSliding);
+        anim.SetFloat("velocityY", rb.velocity.y);
+        anim.SetFloat("speed", Mathf.Abs(inputX));
     }
 
     void FixedUpdate()
@@ -152,7 +143,6 @@ public class WalkRun2D_Rigidbody : MonoBehaviour
         if (isKnockedBack) return;
         if (healthData != null && healthData.currentHealth <= 0) return;
 
-        // Dash
         if (isDashing)
         {
             rb.velocity = new Vector2(dashDirection * dashSpeed, 0f);
@@ -161,22 +151,17 @@ public class WalkRun2D_Rigidbody : MonoBehaviour
             return;
         }
 
-        // Wall slide hareketi engelle
         if (isWallSliding) return;
         if (currentAirControlTimer > 0f) return;
 
-        // Hareket
         if (isGrounded)
-        {
             rb.velocity = new Vector2(inputX * walkSpeed, rb.velocity.y);
-        }
         else
         {
             float newX = Mathf.MoveTowards(rb.velocity.x, inputX * walkSpeed, airAcceleration * Time.fixedDeltaTime);
             rb.velocity = new Vector2(newX, rb.velocity.y);
         }
 
-        // Fall multiplier
         if (rb.velocity.y < 0f)
             rb.velocity += Vector2.up * Physics2D.gravity.y * (fallMultiplier - 1f) * Time.fixedDeltaTime;
         else if (rb.velocity.y > 0f && !Input.GetKey(KeyCode.Space))
@@ -191,6 +176,9 @@ public class WalkRun2D_Rigidbody : MonoBehaviour
             {
                 isWallSliding = true;
                 currentWallGrabTimer = wallGrabDuration;
+
+                if (wallDirection == 1 && !isFacingRight) Flip();
+                else if (wallDirection == -1 && isFacingRight) Flip();
             }
 
             if (currentWallGrabTimer > 0f)
@@ -205,13 +193,18 @@ public class WalkRun2D_Rigidbody : MonoBehaviour
         }
         else
         {
-            isWallSliding = false;
+            if (isWallSliding)
+            {
+                isWallSliding = false;
+
+                if (inputX > 0 && !isFacingRight) Flip();
+                else if (inputX < 0 && isFacingRight) Flip();
+            }
         }
     }
 
     void HandleJump()
     {
-        // Wall jump
         if (enableJump && Input.GetKeyDown(KeyCode.Space) && isWalled && !isGrounded)
         {
             isWallSliding = false;
@@ -219,17 +212,18 @@ public class WalkRun2D_Rigidbody : MonoBehaviour
             rb.velocity = Vector2.zero;
             rb.velocity = new Vector2(jumpDir * wallJumpForce.x, wallJumpForce.y);
             currentAirControlTimer = airControlLockTime;
+
+            if (jumpDir > 0 && !isFacingRight) Flip();
+            else if (jumpDir < 0 && isFacingRight) Flip();
             return;
         }
 
-        // Normal jump
         if (enableJump && Input.GetKeyDown(KeyCode.Space) && isGrounded)
         {
             PerformJump();
             return;
         }
 
-        // Orb jump
         if (enableJump && Input.GetKeyDown(KeyCode.Space) && !isGrounded && currentOrb != null)
         {
             PerformJump();
@@ -286,12 +280,7 @@ public class WalkRun2D_Rigidbody : MonoBehaviour
 
     void OnCollisionEnter2D(Collision2D col)
     {
-        if (col.gameObject.CompareTag(groundTag))
-        {
-            isGrounded = true;
-            if (usedOrbs.Count > 0) ResetOrbState();
-        }
-
+        if (col.gameObject.CompareTag(groundTag)) { isGrounded = true; if (usedOrbs.Count > 0) ResetOrbState(); }
         if (col.gameObject.CompareTag(wallTag))
         {
             isWalled = true;
@@ -302,12 +291,7 @@ public class WalkRun2D_Rigidbody : MonoBehaviour
 
     void OnCollisionStay2D(Collision2D col)
     {
-        if (col.gameObject.CompareTag(groundTag))
-        {
-            isGrounded = true;
-            if (usedOrbs.Count > 0) ResetOrbState();
-        }
-
+        if (col.gameObject.CompareTag(groundTag)) { isGrounded = true; if (usedOrbs.Count > 0) ResetOrbState(); }
         if (col.gameObject.CompareTag(wallTag))
         {
             isWalled = true;
@@ -318,53 +302,33 @@ public class WalkRun2D_Rigidbody : MonoBehaviour
 
     void OnCollisionExit2D(Collision2D col)
     {
-        if (col.gameObject.CompareTag(groundTag))
-            isGrounded = false;
-
-        if (col.gameObject.CompareTag(wallTag))
-        {
-            isWalled = false;
-            isWallSliding = false;
-        }
+        if (col.gameObject.CompareTag(groundTag)) isGrounded = false;
+        if (col.gameObject.CompareTag(wallTag)) { isWalled = false; isWallSliding = false; }
     }
 
     void ResetOrbState()
     {
-        foreach (JumpOrb orb in usedOrbs)
-            if (orb != null) orb.ActivateOrb();
+        foreach (JumpOrb orb in usedOrbs) if (orb != null) orb.ActivateOrb();
         usedOrbs.Clear();
     }
 
-    // ==========================================
-    // SALDIRI VE DÖNÜŞ METOTLARI
-    // ==========================================
     void Attack()
     {
         if (attackPoint == null) return;
-
-        // İleride animasyon ekleneceğinde burayı açacağız:
-        // anim.SetTrigger("Attack");
-
         Collider2D[] hitEnemies = Physics2D.OverlapCircleAll(attackPoint.position, attackRange, enemyLayers);
-
         foreach (Collider2D enemy in hitEnemies)
         {
             EnemyHealth2D enemyHealth = enemy.GetComponent<EnemyHealth2D>();
-
-            if (enemyHealth != null)
-            {
-                enemyHealth.TakeHit();
-                Debug.Log(enemy.name + " tek yedi ve öldü!");
-            }
+            if (enemyHealth != null) enemyHealth.TakeHit();
         }
     }
 
     void Flip()
     {
         isFacingRight = !isFacingRight;
-        Vector3 currentScale = transform.localScale;
-        currentScale.x *= -1;
-        transform.localScale = currentScale;
+        Vector3 s = transform.localScale;
+        s.x *= -1;
+        transform.localScale = s;
     }
 
     void OnDrawGizmosSelected()

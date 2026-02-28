@@ -10,15 +10,15 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: -8679921383154817045, guid: 18b8e38a97be71a4cabff18a09b190e7, type: 3}
       propertyPath: m_LocalScale.x
-      value: 0.29
+      value: 0.17
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 18b8e38a97be71a4cabff18a09b190e7, type: 3}
       propertyPath: m_LocalScale.y
-      value: 0.29
+      value: 0.17
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 18b8e38a97be71a4cabff18a09b190e7, type: 3}
       propertyPath: m_LocalScale.z
-      value: 0.29
+      value: 0.17
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 18b8e38a97be71a4cabff18a09b190e7, type: 3}
       propertyPath: m_LocalPosition.x
@@ -165,6 +165,10 @@ MonoBehaviour:
   lifetime: 3
   damage: 50
   hitEffect: {fileID: 0}
+  bloodPrefab: {fileID: 2965991584498768920, guid: e23e30d4f864842458ef4e7eabbef6ca, type: 3}
+  bloodCount: 5
+  bloodInterval: 0.05
+  spreadAmount: 0.2
   maxDistance: 24
   playerTag: Player
 --- !u!114 &-7943655509760378147
