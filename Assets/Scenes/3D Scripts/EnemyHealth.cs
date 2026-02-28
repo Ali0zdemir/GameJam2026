@@ -2,11 +2,9 @@ using UnityEngine;
 
 public class EnemyHealth : MonoBehaviour
 {
-    [Header("Can")]
+    [Header("Sağlık")]
     public float maxHealth = 100f;
     float currentHealth;
-
-    public float destroyDelay = 0.2f;      // Ölünce kaç saniye sonra yok olsun
 
     void Start()
     {
@@ -16,13 +14,12 @@ public class EnemyHealth : MonoBehaviour
     public void TakeDamage(float amount)
     {
         currentHealth -= amount;
-
         if (currentHealth <= 0f)
             Die();
     }
 
     void Die()
     {
-        Destroy(gameObject, destroyDelay);
+        Destroy(gameObject, 0.2f);
     }
 }
