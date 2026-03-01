@@ -3,10 +3,11 @@ using UnityEngine;
 
 /// <summary>
 /// Yenilmez Boss AI - Oyuncu bu bossa hasar veremez.
-/// 3 saldırı:
+/// 4 saldırı:
 ///   State 1: Ahtapot (Elektrik topları her yöne)
 ///   State 2: Seri Atış (Oyuncuya nişanlı)
 ///   State 3: Çapraz Atışlı Atılma (Dash)
+///   State 4: Arena Spiral (yavaş dönen spiral akış)
 /// </summary>
 public class InvincibleBossAI : MonoBehaviour
 {
@@ -16,6 +17,9 @@ public class InvincibleBossAI : MonoBehaviour
     [Header("Görsel / Animasyon")]
     public Animator anim;
     public Transform firePoint;
+
+    [Header("Debug")]
+    public bool debugLogStates = false;
 
     // ==========================================
     // STATE 1: AHTAPOT SALDIRISI
@@ -29,6 +33,9 @@ public class InvincibleBossAI : MonoBehaviour
     public int octopusWaves = 3;
     public float timeBetweenWaves = 1f;
 
+    [Tooltip("Ahtapot mermilerinin hızı (15 hızlıydı).")]
+    public float octopusBulletSpeed = 8f;
+
     // ==========================================
     // STATE 2: SERİ ATIŞ
     // ==========================================
@@ -39,6 +46,9 @@ public class InvincibleBossAI : MonoBehaviour
     public float timeBetweenShots = 0.15f;
     public float timeBetweenBursts = 1f;
 
+    [Tooltip("Seri atış mermi hızı.")]
+    public float burstBulletSpeed = 25f;
+
     // ==========================================
     // STATE 3: DASH SALDIRISI
     // ==========================================
@@ -48,6 +58,36 @@ public class InvincibleBossAI : MonoBehaviour
     public float dashOvershoot = 7f;
     public int shotsDuringDash = 4;
     public float dashDiagonalAngle = 45f;
+
+    [Tooltip("Dash sırasında atılan mermilerin hızı.")]
+    public float dashBulletSpeed = 20f;
+
+    // ==========================================
+    // STATE 4: ARENA SPIRAL
+    // ==========================================
+    [Header("State 4 - Arena Spiral")]
+    public GameObject spiralProjectilePrefab;
+
+    [Tooltip("Spiral nereden çıksın? Boşsa boss konumu kullanılır.")]
+    public Transform arenaCenter;
+
+    [Tooltip("Spiral kaç saniye sürsün?")]
+    public float spiralDuration = 5f;
+
+    [Tooltip("Mermi çıkış aralığı (daha büyük = daha yavaş/seyrek).")]
+    public float spiralFireInterval = 0.08f;
+
+    [Tooltip("Spiral dönüş hızı (derece/saniye). 60-140 arası iyi.")]
+    public float spiralRotationSpeed = 90f;
+
+    [Tooltip("Spiral mermi hızı.")]
+    public float spiralBulletSpeed = 12f;
+
+    [Tooltip("Kaç kollu spiral? 1 = tek kol, 2 = karşılıklı iki kol, 3/4 vs.")]
+    public int spiralArms = 2;
+
+    [Tooltip("Her atışta açıya ekstra offset ekler (spirali daha kıvrımlı yapar).")]
+    public float spiralAngleJitter = 0f;
 
     // ==========================================
     // HAREKET
@@ -67,7 +107,6 @@ public class InvincibleBossAI : MonoBehaviour
     // YENİLMEZLİK
     // ==========================================
     [Header("Yenilmezlik")]
-    [Tooltip("True iken bossa hiçbir hasar uygulanmaz.")]
     public bool isInvincible = true;
     public GameObject invincibilityEffect;
 
@@ -102,9 +141,6 @@ public class InvincibleBossAI : MonoBehaviour
             StartCoroutine(GlideTowardsPlayer());
     }
 
-    // ==========================================
-    // YENİLMEZLİK: Hasar alma fonksiyonu
-    // ==========================================
     public void TakeDamage(float amount)
     {
         if (isInvincible)
@@ -112,13 +148,8 @@ public class InvincibleBossAI : MonoBehaviour
             Debug.Log("[InvincibleBoss] Hasar engellendi! Boss yenilmez.");
             return;
         }
-
-        // İleride yenilmezlik kalkarsa burada can düşürme vs. eklenir.
     }
 
-    // ==========================================
-    // TEMAS HASARI
-    // ==========================================
     void OnCollisionEnter(Collision collision)
     {
         if (collision.gameObject.CompareTag("Player"))
@@ -138,7 +169,7 @@ public class InvincibleBossAI : MonoBehaviour
     }
 
     // ==========================================
-    // SALDIRI DÖNGÜSÜ
+    // SALDIRI DÖNGÜSÜ (State 2 randomdan gelebilir)
     // ==========================================
     IEnumerator AttackCycleRoutine()
     {
@@ -151,7 +182,7 @@ public class InvincibleBossAI : MonoBehaviour
             // Anti-spam: aynı saldırı 2 kereden fazla üst üste gelmesin
             do
             {
-                state = Random.Range(1, 4); // 1, 2 veya 3
+                state = Random.Range(1, 5); // 1..4 (2 dahil!)
             }
             while (state == lastAttackState && consecutiveAttackCount >= 2);
 
@@ -162,14 +193,18 @@ public class InvincibleBossAI : MonoBehaviour
                 consecutiveAttackCount = 1;
             }
 
-            if (state == 1) yield return StartCoroutine(State1_OctopusAttack());
+            if (debugLogStates)
+                Debug.Log($"[InvincibleBoss] State seçildi: {state}");
+
+            if      (state == 1) yield return StartCoroutine(State1_OctopusAttack());
             else if (state == 2) yield return StartCoroutine(State2_BurstAttack());
             else if (state == 3) yield return StartCoroutine(State3_DashAttack());
+            else if (state == 4) yield return StartCoroutine(State4_ArenaSpiral());
         }
     }
 
     // ==========================================
-    // STATE 1: AHTAPOT SALDIRISI
+    // STATE 1: AHTAPOT
     // ==========================================
     IEnumerator State1_OctopusAttack()
     {
@@ -202,20 +237,21 @@ public class InvincibleBossAI : MonoBehaviour
             float angle = i * angleStep + angleOffset;
 
             Vector3 fireDir = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
-            fireDir.y = 0f;         // TOP-DOWN düzeltme
+            fireDir.y = 0f;
             fireDir.Normalize();
 
             GameObject ball = Instantiate(electricBallPrefab, firePoint.position, Quaternion.LookRotation(fireDir));
 
             Rigidbody rb = ball.GetComponent<Rigidbody>();
+            if (rb == null) rb = ball.GetComponentInChildren<Rigidbody>();
             if (rb == null)
             {
                 Debug.LogError("electricBallPrefab üzerinde Rigidbody (3D) yok! Rigidbody2D değil, Rigidbody olmalı.");
                 continue;
             }
 
-            rb.useGravity = false;  // Top-down
-            rb.velocity = fireDir * 15f;
+            rb.useGravity = false;
+            rb.velocity = fireDir * octopusBulletSpeed; // <-- HIZ BURADAN AYARLANIYOR
         }
     }
 
@@ -224,6 +260,12 @@ public class InvincibleBossAI : MonoBehaviour
     // ==========================================
     IEnumerator State2_BurstAttack()
     {
+        if (burstProjectilePrefab == null)
+        {
+            Debug.LogWarning("[InvincibleBoss] State2 çalışmadı: burstProjectilePrefab atanmamış.");
+            yield break;
+        }
+
         if (anim != null) anim.SetTrigger("PreBurst");
         yield return new WaitForSeconds(1f);
 
@@ -247,16 +289,14 @@ public class InvincibleBossAI : MonoBehaviour
         if (!burstProjectilePrefab || !firePoint || player == null) return;
 
         Vector3 aimDir = player.position - firePoint.position;
-        aimDir.y = 0f;          // TOP-DOWN düzeltme
+        aimDir.y = 0f; // top-down
         if (aimDir.sqrMagnitude < 0.001f) return;
         aimDir.Normalize();
-
-        // Debug için: yön doğru mu?
-        Debug.DrawRay(firePoint.position, aimDir * 5f, Color.red, 0.5f);
 
         GameObject proj = Instantiate(burstProjectilePrefab, firePoint.position, Quaternion.LookRotation(aimDir));
 
         Rigidbody rb = proj.GetComponent<Rigidbody>();
+        if (rb == null) rb = proj.GetComponentInChildren<Rigidbody>();
         if (rb == null)
         {
             Debug.LogError("burstProjectilePrefab üzerinde Rigidbody (3D) yok! Rigidbody2D değil, Rigidbody olmalı.");
@@ -264,11 +304,11 @@ public class InvincibleBossAI : MonoBehaviour
         }
 
         rb.useGravity = false;
-        rb.velocity = aimDir * 25f;
+        rb.velocity = aimDir * burstBulletSpeed;
     }
 
     // ==========================================
-    // STATE 3: DASH SALDIRISI
+    // STATE 3: DASH
     // ==========================================
     IEnumerator State3_DashAttack()
     {
@@ -327,15 +367,11 @@ public class InvincibleBossAI : MonoBehaviour
         rightBackDir.Normalize();
 
         GameObject rightProj = Instantiate(burstProjectilePrefab, firePoint.position, Quaternion.LookRotation(rightBackDir));
-        Rigidbody rightRb = rightProj.GetComponent<Rigidbody>();
-        if (rightRb == null)
-        {
-            Debug.LogError("burstProjectilePrefab üzerinde Rigidbody (3D) yok!");
-        }
-        else
+        Rigidbody rightRb = rightProj.GetComponent<Rigidbody>() ?? rightProj.GetComponentInChildren<Rigidbody>();
+        if (rightRb != null)
         {
             rightRb.useGravity = false;
-            rightRb.velocity = rightBackDir * 20f;
+            rightRb.velocity = rightBackDir * dashBulletSpeed;
         }
 
         // Sol çapraz
@@ -344,20 +380,76 @@ public class InvincibleBossAI : MonoBehaviour
         leftBackDir.Normalize();
 
         GameObject leftProj = Instantiate(burstProjectilePrefab, firePoint.position, Quaternion.LookRotation(leftBackDir));
-        Rigidbody leftRb = leftProj.GetComponent<Rigidbody>();
-        if (leftRb == null)
-        {
-            Debug.LogError("burstProjectilePrefab üzerinde Rigidbody (3D) yok!");
-        }
-        else
+        Rigidbody leftRb = leftProj.GetComponent<Rigidbody>() ?? leftProj.GetComponentInChildren<Rigidbody>();
+        if (leftRb != null)
         {
             leftRb.useGravity = false;
-            leftRb.velocity = leftBackDir * 20f;
+            leftRb.velocity = leftBackDir * dashBulletSpeed;
         }
     }
 
     // ==========================================
-    // HAREKET (Oyuncuya doğru kayma)
+    // STATE 4: ARENA SPIRAL
+    // ==========================================
+    IEnumerator State4_ArenaSpiral()
+    {
+        if (spiralProjectilePrefab == null)
+        {
+            Debug.LogWarning("[InvincibleBoss] State4 çalışmadı: spiralProjectilePrefab atanmamış!");
+            yield break;
+        }
+
+        if (anim != null) anim.SetTrigger("PreArenaSpiral");
+        yield return new WaitForSeconds(0.8f);
+
+        Transform center = arenaCenter != null ? arenaCenter : transform;
+
+        float angle = 0f;
+        float endTime = Time.time + spiralDuration;
+
+        int arms = Mathf.Max(1, spiralArms);
+        float armStep = 360f / arms;
+
+        float interval = Mathf.Max(0.02f, spiralFireInterval);
+
+        while (Time.time < endTime)
+        {
+            for (int a = 0; a < arms; a++)
+            {
+                float currentAngle = angle + (a * armStep);
+                if (spiralAngleJitter != 0f)
+                    currentAngle += Random.Range(-spiralAngleJitter, spiralAngleJitter);
+
+                Vector3 dir = Quaternion.Euler(0f, currentAngle, 0f) * Vector3.forward;
+                dir.y = 0f;
+                dir.Normalize();
+
+                Vector3 spawnPos = center.position;
+                if (firePoint != null) spawnPos.y = firePoint.position.y;
+
+                GameObject proj = Instantiate(spiralProjectilePrefab, spawnPos, Quaternion.LookRotation(dir));
+
+                Rigidbody rb = proj.GetComponent<Rigidbody>();
+                if (rb == null) rb = proj.GetComponentInChildren<Rigidbody>();
+                if (rb == null)
+                {
+                    Debug.LogError("spiralProjectilePrefab üzerinde Rigidbody (3D) yok! Rigidbody2D değil, Rigidbody olmalı.");
+                    continue;
+                }
+
+                rb.useGravity = false;
+                rb.velocity = dir * spiralBulletSpeed;
+            }
+
+            angle += spiralRotationSpeed * interval;
+            angle = Mathf.Repeat(angle, 360f);
+
+            yield return new WaitForSeconds(interval);
+        }
+    }
+
+    // ==========================================
+    // HAREKET
     // ==========================================
     IEnumerator GlideTowardsPlayer()
     {

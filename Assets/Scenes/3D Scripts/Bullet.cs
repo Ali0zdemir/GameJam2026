@@ -40,17 +40,16 @@ public class Bullet : MonoBehaviour
 
         hasHit = true;
 
-        if (col.gameObject.CompareTag("Enemy") || col.gameObject.CompareTag("Boss"))
+       if (col.gameObject.CompareTag("Enemy") || col.gameObject.CompareTag("Boss"))
         {
+            // Kalkan kontrolü — kan çıkmasın
+            var armored = col.gameObject.GetComponentInParent<EnemyAI_Armored>();
+            bool isShielded = armored != null && armored.isInvulnerable;
+
             HandleDamage(col.gameObject);
-            
-            // Kan efektini başlatmak için merminin "konumunu" ve "çarptığı objeyi" kullanıyoruz
-            // Mermi yok olacağı için Coroutine'i sahnede yaşayan bir objede (Düşmanda) başlatıyoruz
-            if (bloodPrefab != null)
-            {
-                // Düşmanın üzerinde bir script aracılığıyla veya boş bir obje yaratarak efekti başlat
+
+            if (bloodPrefab != null && !isShielded)
                 SpawnBloodIndependent(col);
-            }
         }
         else
         {
@@ -77,16 +76,26 @@ public class Bullet : MonoBehaviour
     }
 
     void HandleDamage(GameObject obj)
+{
+    // Armored enemy kalkan kontrolü
+    var armored = obj.GetComponentInParent<EnemyAI_Armored>();
+    if (armored != null && armored.isInvulnerable)
     {
-        var enemy = obj.GetComponentInParent<EnemyHealth>();
-        if (enemy != null) enemy.TakeDamage(damage);
-
-        var boss = obj.GetComponentInParent<BossAI>();
-        if (boss != null) boss.TakeDamage(damage);
-
-        if (CrosshairHitIndicator.Instance != null)
-            CrosshairHitIndicator.Instance.ShowHit();
+        // Kalkan aktif: ses çal, kan çıkarma, hasar verme
+        var audio = obj.GetComponentInParent<EnemyAudioController>();
+        audio?.PlayShieldHit();
+        return; // buradan çık, hasar ve kan yok
     }
+
+    var enemy = obj.GetComponentInParent<EnemyHealth>();
+    if (enemy != null) enemy.TakeDamage(damage);
+
+    var boss = obj.GetComponentInParent<BossAI>();
+    if (boss != null) boss.TakeDamage(damage);
+
+    if (CrosshairHitIndicator.Instance != null)
+        CrosshairHitIndicator.Instance.ShowHit();
+}
 }
 
 // BU AYRI BİR CLASS / DOSYA OLABİLİR VEYA AYNI DOSYANIN ALTINA EKLEYEBİLİRSİN

@@ -4,7 +4,7 @@ using UnityEngine;
 public class PlayerMovementA : MonoBehaviour
 {
     public float playerSpeed;
-    public float walkSpeed = 12f; // Hız artırıldı
+    public float walkSpeed = 12f;
     public Rigidbody rb;
     public float jumpForce = 5f;
     public bool isGround;
@@ -17,6 +17,14 @@ public class PlayerMovementA : MonoBehaviour
 
     [Header("Gravity")]
     public float fallMultiplier = 3f;
+
+    [Header("Yürüme Sesi")]
+    public AudioClip[] footstepSounds;
+    [Range(0f, 1f)] public float footstepVolume = 0.8f;
+    public float footstepInterval = 4f; // Kaç saniyede bir adım sesi
+
+    [HideInInspector] public AudioSource audioSource;
+    [HideInInspector] public float footstepTimer;
 
     IState currentState;
     IState Idle = new IdleState();
@@ -36,6 +44,11 @@ public class PlayerMovementA : MonoBehaviour
         playerSpeed = walkSpeed;
         currentState = Idle;
         currentState.UpdateState(this);
+
+        audioSource = GetComponent<AudioSource>();
+        if (audioSource == null)
+            audioSource = gameObject.AddComponent<AudioSource>();
+        audioSource.playOnAwake = false;
     }
 
     void Update()
@@ -43,7 +56,6 @@ public class PlayerMovementA : MonoBehaviour
         if (dashCooldownTimer > 0f)
             dashCooldownTimer -= Time.deltaTime;
 
-        // Dash - Shift + yön
         if (Input.GetKeyDown(KeyCode.LeftShift) && !isDashing && dashCooldownTimer <= 0f)
         {
             float h = Input.GetAxisRaw("Horizontal");
@@ -77,6 +89,14 @@ public class PlayerMovementA : MonoBehaviour
 
         if (!isGround && rb.velocity.y < 0f)
             rb.velocity += Vector3.up * Physics.gravity.y * (fallMultiplier - 1f) * Time.fixedDeltaTime;
+    }
+
+    public void PlayFootstep()
+    {
+        if (footstepSounds == null || footstepSounds.Length == 0) return;
+        AudioClip clip = footstepSounds[UnityEngine.Random.Range(0, footstepSounds.Length)];
+        if (clip != null)
+            audioSource.PlayOneShot(clip, footstepVolume);
     }
 
     public void EvaluateState()

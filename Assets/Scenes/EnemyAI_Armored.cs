@@ -44,9 +44,11 @@ public class EnemyAI_Armored : MonoBehaviour
 
     private Coroutine attackCoroutine;
     private Coroutine shieldAnimCoroutine;
+    EnemyAudioController enemyAudio;
 
     void Start()
     {
+        enemyAudio = GetComponent<EnemyAudioController>();
         rb = GetComponent<Rigidbody>();
         rb.useGravity = true;
         rb.freezeRotation = true;
@@ -86,12 +88,12 @@ public class EnemyAI_Armored : MonoBehaviour
    void SetShieldState(bool state)
 {
     if (isShielded == state) return;
-
     isShielded = state;
 
     if (state)
     {
         isInvulnerable = true;
+        enemyAudio?.PlayShieldClose(); // ← kalkan kapanıyor
 
         if (isAttacking)
         {
@@ -113,8 +115,8 @@ public class EnemyAI_Armored : MonoBehaviour
     }
     else
     {
-        // Açılma animasyonu sırasında hala hasar almayacak
-        // isInvulnerable animasyon bitince false olacak
+        enemyAudio?.PlayShieldOpen(); // ← kalkan açılıyor
+
         if (shieldAnimCoroutine != null) StopCoroutine(shieldAnimCoroutine);
 
         if (anim != null)
@@ -186,11 +188,12 @@ IEnumerator AttackRoutine()
 
     yield return new WaitForSeconds(attackPrepareTime);
 
-    // Sadece isShielded kontrolü
     if (!isShielded && bulletPrefab && firePoint && player)
     {
         Vector3 aimDir = (player.position - firePoint.position).normalized;
         GameObject bullet = Instantiate(bulletPrefab, firePoint.position, Quaternion.LookRotation(aimDir));
+
+        enemyAudio?.PlayShoot(); // ← BUNU EKLE
 
         Rigidbody bulletRb = bullet.GetComponent<Rigidbody>();
         if (bulletRb)

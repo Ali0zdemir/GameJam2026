@@ -11,18 +11,23 @@ public class WaveManager : MonoBehaviour
 
     [Header("Spawn Noktaları")]
     public Transform[] spawnPoints;
-    public float playerSpawnBlockRadius = 10f; // Player'a bu kadar yakın spawnlar pasif
+    public float playerSpawnBlockRadius = 10f;
 
     [Header("Wave Ayarları")]
-    public float timeBetweenGroups = 3f; // Grup içi bekleme
-    public float timeBetweenWaves = 5f;  // Wave'ler arası bekleme
+    public float timeBetweenGroups = 3f;
+    public float timeBetweenWaves = 5f;
+
+    [Header("Kapı")]
+    public GameObject door;
+    public float doorOpenAngle = 90f;
+    public float doorOpenDuration = 1.5f;
+
+    [Header("Kapı Sonrası Trigger")]
+    public GameObject nextTrigger;
 
     Transform player;
     int currentWave = 0;
-    bool waveRunning = false;
 
-    // Wave yapısı: her wave = grup listesi, her grup = enemy listesi
-    // Format: WaveData[wave][group][enemy] = (prefab, count)
     List<List<List<(GameObject prefab, int count)>>> allWaves;
 
     void Start()
@@ -39,39 +44,39 @@ public class WaveManager : MonoBehaviour
         // WAVE 1
         allWaves.Add(new List<List<(GameObject, int)>>
         {
-            new List<(GameObject, int)> { (meleePrefab, 3) },           // Grup 1: 3 melee
-            new List<(GameObject, int)> { (meleePrefab, 4) },           // Grup 2: 4 melee
-            new List<(GameObject, int)> { (meleePrefab, 5) },           // Grup 3: 5 melee
+            new List<(GameObject, int)> { (meleePrefab, 3) },
+            new List<(GameObject, int)> { (meleePrefab, 4) },
+            new List<(GameObject, int)> { (meleePrefab, 5) },
         });
 
         // WAVE 2
         allWaves.Add(new List<List<(GameObject, int)>>
         {
-            new List<(GameObject, int)> { (meleePrefab, 3), (armoredPrefab, 1) },           // Grup 1
-            new List<(GameObject, int)> { (meleePrefab, 2), (armoredPrefab, 2) },           // Grup 2
-            new List<(GameObject, int)> { (meleePrefab, 5), (armoredPrefab, 2) },           // Grup 3
+            new List<(GameObject, int)> { (meleePrefab, 3), (armoredPrefab, 1) },
+            new List<(GameObject, int)> { (meleePrefab, 2), (armoredPrefab, 2) },
+            new List<(GameObject, int)> { (meleePrefab, 5), (armoredPrefab, 2) },
         });
 
         // WAVE 3
         allWaves.Add(new List<List<(GameObject, int)>>
         {
-            new List<(GameObject, int)> { (meleePrefab, 5) },                                           // Grup 1
-            new List<(GameObject, int)> { (meleePrefab, 3), (armoredPrefab, 2), (flyingPrefab, 2) },   // Grup 2
-            new List<(GameObject, int)> { (meleePrefab, 2), (armoredPrefab, 3), (flyingPrefab, 3) },   // Grup 3
+            new List<(GameObject, int)> { (meleePrefab, 5) },
+            new List<(GameObject, int)> { (meleePrefab, 3), (armoredPrefab, 2), (flyingPrefab, 2) },
+            new List<(GameObject, int)> { (meleePrefab, 2), (armoredPrefab, 3), (flyingPrefab, 3) },
         });
 
         // WAVE 4
         allWaves.Add(new List<List<(GameObject, int)>>
         {
-            new List<(GameObject, int)> { (flyingPrefab, 5) },                                          // Grup 1
-            new List<(GameObject, int)> { (armoredPrefab, 5) },                                         // Grup 2
-            new List<(GameObject, int)> { (meleePrefab, 3), (armoredPrefab, 3), (flyingPrefab, 3) },   // Grup 3
+            new List<(GameObject, int)> { (flyingPrefab, 5) },
+            new List<(GameObject, int)> { (armoredPrefab, 5) },
+            new List<(GameObject, int)> { (meleePrefab, 3), (armoredPrefab, 3), (flyingPrefab, 3) },
         });
     }
 
     IEnumerator RunWaves()
     {
-        yield return new WaitForSeconds(2f); // Başlangıç gecikmesi
+        yield return new WaitForSeconds(2f);
 
         for (int w = 0; w < allWaves.Count; w++)
         {
@@ -86,19 +91,16 @@ public class WaveManager : MonoBehaviour
 
                 List<GameObject> spawnedEnemies = SpawnGroup(groups[g]);
 
-                // Tüm enemyler ölene kadar bekle
                 yield return StartCoroutine(WaitForEnemiesDead(spawnedEnemies));
 
                 Debug.Log($"Grup {g + 1} temizlendi!");
 
-                // Son grup değilse gruplar arası bekle
                 if (g < groups.Count - 1)
                     yield return new WaitForSeconds(timeBetweenGroups);
             }
 
             Debug.Log($"Wave {currentWave} tamamlandı!");
 
-            // Son wave değilse waveler arası bekle
             if (w < allWaves.Count - 1)
             {
                 Debug.Log($"{timeBetweenWaves} saniye sonra Wave {currentWave + 1} başlıyor...");
@@ -107,8 +109,30 @@ public class WaveManager : MonoBehaviour
             else
             {
                 Debug.Log("Tüm waveler tamamlandı!");
+                if (door != null)
+                    StartCoroutine(OpenDoor());
             }
         }
+    }
+
+    IEnumerator OpenDoor()
+    {
+        Quaternion startRot = door.transform.rotation;
+        Quaternion targetRot = startRot * Quaternion.Euler(0f, doorOpenAngle, 0f);
+        float elapsed = 0f;
+
+        while (elapsed < doorOpenDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.SmoothStep(0f, 1f, elapsed / doorOpenDuration);
+            door.transform.rotation = Quaternion.Lerp(startRot, targetRot, t);
+            yield return null;
+        }
+
+        door.transform.rotation = targetRot;
+
+        if (nextTrigger != null)
+            nextTrigger.SetActive(true);
     }
 
     List<GameObject> SpawnGroup(List<(GameObject prefab, int count)> group)
@@ -145,7 +169,6 @@ public class WaveManager : MonoBehaviour
         {
             if (sp == null) continue;
 
-            // Player'a çok yakınsa pasif say
             if (player != null)
             {
                 float dist = Vector3.Distance(sp.position, player.position);
@@ -160,7 +183,9 @@ public class WaveManager : MonoBehaviour
 
     IEnumerator WaitForEnemiesDead(List<GameObject> enemies)
     {
-        // Null olmayan (ölmemiş) enemy kalmayana kadar bekle
+        float timeout = 50f;
+        float elapsed = 0f;
+
         bool anyAlive = true;
 
         while (anyAlive)
@@ -174,6 +199,16 @@ public class WaveManager : MonoBehaviour
                     break;
                 }
             }
+
+            elapsed += 0.5f;
+
+            if (elapsed >= timeout)
+            {
+                foreach (GameObject e in enemies)
+                    if (e != null) Destroy(e);
+                break;
+            }
+
             yield return new WaitForSeconds(0.5f);
         }
     }

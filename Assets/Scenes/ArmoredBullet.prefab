@@ -147,7 +147,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   lifetime: 4
-  damage: 75
+  damage: 10
   hitEffect: {fileID: 0}
   playerTag: Player
   enemyTag: Enemy

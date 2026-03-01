@@ -132,6 +132,8 @@ GameObject:
   - component: {fileID: 4087960578307191038}
   - component: {fileID: 3945032753121098170}
   - component: {fileID: 5659469753190512573}
+  - component: {fileID: 5676815931316373231}
+  - component: {fileID: 399156811900784707}
   m_Layer: 0
   m_Name: FlyingEnemy
   m_TagString: Enemy
@@ -246,6 +248,134 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 2.723977, y: 1.1780388, z: 0.05196762}
   m_Center: {x: 0.0075798035, y: -0.3335644, z: 0.64486027}
+--- !u!114 &5676815931316373231
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7493488972105114995}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f58b5c2978511d4191b680df633464c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  audioSource: {fileID: 399156811900784707}
+  chargeSound: {fileID: 0}
+  jumpSound: {fileID: 0}
+  landSound: {fileID: 0}
+  hitSounds: []
+  shieldHitSounds: []
+  shieldCloseSound: {fileID: 0}
+  shieldOpenSound: {fileID: 0}
+  shootSounds:
+  - {fileID: 8300000, guid: a08420fa62d0f774aa53eac9a02ba7fb, type: 3}
+  flyingLoopSound: {fileID: 8300000, guid: c7d260b4551e27c46909557fa9cc5865, type: 3}
+  chargeVolume: 0.702
+  jumpVolume: 1
+  landVolume: 1
+  hitVolume: 1
+  shieldHitVolume: 1
+  shieldCloseVolume: 1
+  shieldOpenVolume: 1
+  shootVolume: 0.895
+  flyingLoopVolume: 0.4
+--- !u!82 &399156811900784707
+AudioSource:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7493488972105114995}
+  m_Enabled: 1
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: 0}
+  m_audioClip: {fileID: 0}
+  m_PlayOnAwake: 1
+  m_Volume: 1
+  m_Pitch: 1
+  Loop: 0
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 128
+  DopplerLevel: 1
+  MinDistance: 1
+  MaxDistance: 500
+  Pan2D: 0
+  rolloffMode: 0
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
 --- !u!1 &8504237331226989901
 GameObject:
   m_ObjectHideFlags: 0

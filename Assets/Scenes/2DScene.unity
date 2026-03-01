@@ -45062,7 +45062,7 @@ Transform:
   m_GameObject: {fileID: 1949656303}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 7.51, y: 1.42, z: 0.42}
+  m_LocalPosition: {x: 41.21, y: 1.42, z: 0.42}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -45080,7 +45080,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a6e2a615b1a75164aa158c6e0394070a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  targetSceneName: 3DScene
+  targetSceneName: 1.5Arena
   playerTag: Player
 --- !u!1 &1973350142
 GameObject:

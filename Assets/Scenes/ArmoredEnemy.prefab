@@ -163,6 +163,8 @@ GameObject:
   - component: {fileID: 1877112717212707306}
   - component: {fileID: 5597279844369006863}
   - component: {fileID: 2062957966095886480}
+  - component: {fileID: 6700088263077897495}
+  - component: {fileID: 5212039259710195065}
   m_Layer: 7
   m_Name: ArmoredEnemy
   m_TagString: Enemy
@@ -275,3 +277,131 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.80559015, y: 0.6723119, z: 0.13238825}
   m_Center: {x: 0.016764248, y: 0.042084083, z: -0.09112193}
+--- !u!114 &6700088263077897495
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6145095048748697808}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f58b5c2978511d4191b680df633464c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  audioSource: {fileID: 5212039259710195065}
+  chargeSound: {fileID: 0}
+  jumpSound: {fileID: 0}
+  landSound: {fileID: 0}
+  hitSounds:
+  - {fileID: 8300000, guid: 1bc0cd30467ec9842bad1fb6d45df145, type: 3}
+  shieldHitSounds:
+  - {fileID: 8300000, guid: 2e8b0a27dee844841a2fbe0b6f7bc9d0, type: 3}
+  shieldCloseSound: {fileID: 8300000, guid: 59de2f0f984b9614bbcfad951b6facd9, type: 3}
+  shieldOpenSound: {fileID: 8300000, guid: 59de2f0f984b9614bbcfad951b6facd9, type: 3}
+  shootSounds:
+  - {fileID: 8300000, guid: a08420fa62d0f774aa53eac9a02ba7fb, type: 3}
+  chargeVolume: 0.684
+  jumpVolume: 0.64
+  landVolume: 0.675
+  hitVolume: 0.632
+  shieldHitVolume: 1
+  shieldCloseVolume: 1
+  shieldOpenVolume: 1
+  shootVolume: 1
+--- !u!82 &5212039259710195065
+AudioSource:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6145095048748697808}
+  m_Enabled: 1
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: 0}
+  m_audioClip: {fileID: 0}
+  m_PlayOnAwake: 1
+  m_Volume: 1
+  m_Pitch: 1
+  Loop: 0
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 128
+  DopplerLevel: 1
+  MinDistance: 1
+  MaxDistance: 500
+  Pan2D: 0
+  rolloffMode: 0
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4

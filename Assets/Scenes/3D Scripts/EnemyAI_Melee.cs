@@ -41,9 +41,11 @@ public class EnemyAI_Melee : MonoBehaviour
     bool isJumping = false;
 
     Vector3 spriteOriginalPos;
+    EnemyAudioController enemyAudio;
 
     void Start()
     {
+        enemyAudio = GetComponent<EnemyAudioController>();
         GameObject p = GameObject.FindWithTag("Player");
         if (p)
         {
@@ -159,6 +161,7 @@ public class EnemyAI_Melee : MonoBehaviour
             isGrounded = false;
             isJumping = true;
             rb.AddForce(new Vector3(jumpDir.x * jumpForce * 2.5f, jumpForce, jumpDir.z * jumpForce * 1.5f), ForceMode.Impulse);
+            enemyAudio?.PlayJump();
         }
 
         // Zıplama animasyon süresi kadar bekle
@@ -198,6 +201,8 @@ public class EnemyAI_Melee : MonoBehaviour
     {
         float elapsed = 0f;
 
+        enemyAudio?.PlayCharge();
+
         while (elapsed < chargeDuration)
         {
             elapsed += Time.deltaTime;
@@ -221,7 +226,10 @@ public class EnemyAI_Melee : MonoBehaviour
     void OnCollisionEnter(Collision col)
     {
         if (col.gameObject.CompareTag("Ground"))
-            isGrounded = true;
+            {
+                isGrounded = true;
+                enemyAudio?.PlayLand(); // ← BURAYA EKLE
+            }
 
         if (col.gameObject.CompareTag("Player") && isJumping)
         {

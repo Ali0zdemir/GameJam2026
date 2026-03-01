@@ -1,11 +1,16 @@
 using System.Collections;
 using UnityEngine;
 
+[RequireComponent(typeof(Rigidbody))]
+[RequireComponent(typeof(Collider))]
 public class BossAI : MonoBehaviour
 {
     [Header("Hedef ve Görsel")]
     public Animator anim;
     public Transform firePoint;
+
+    [Header("Bob sadece görselde olsun (opsiyonel)")]
+    public Transform visualRoot; // boşsa anim.transform kullanır
 
     [Header("Saldırı: Ahtapot (State 1)")]
     public GameObject electricBallPrefab;
@@ -28,17 +33,32 @@ public class BossAI : MonoBehaviour
     public int minionCount = 3;
     public Transform[] spawnPoints;
 
-    [Header("Saldırı: Çapraz Atışlı Atılma (State 4)")]
-    public float chargeTime = 1f;
-    public float dashSpeed = 35f;
-    public float dashOvershoot = 7f;
-    public int shotsDuringDash = 4;
-    public float dashDiagonalAngle = 45f;
+    [Header("Akıllı Süzülme")]
+    public float glideSpeed = 2.5f;
+    public float orbitSpeed = 1.5f;
+    public float preferredDistance = 5f;
+    public float tooCloseDistance = 3f;
+    public float tooFarDistance = 9f;
+    public float glideSmoothing = 3f;
+    public float directionChangeInterval = 2f;
 
-    [Header("Hareket Ayarları")]
-    public float moveSpeed = 8f;
-    public float moveDistance = 6f;
-    public float moveCooldown = 5f;
+    [Header("Bob (Yukarı Aşağı Süzülme) - sadece görsel")]
+    public float bobSpeed = 1.5f;
+    public float bobAmount = 0.2f;
+
+    [Header("Mermi Hızları")]
+    public float octopusBulletSpeed = 7f;
+    public float burstBulletSpeed = 12f;
+
+    [Header("Mermi Y İnişi (SADECE Y)")]
+    [Tooltip("Mermiler Y'de aşağı kaç hızla insin?")]
+    public float projectileDropSpeed = 6f;
+
+    [Tooltip("Hedef Y = playerY - bu değer. (Daha fazla insin istiyorsan artır)")]
+    public float projectileYBelowPlayer = 0.3f;
+
+    [Tooltip("Hedef Y'ye gelince Y'yi kilitlesin mi?")]
+    public bool lockProjectileYAtTarget = true;
 
     [Header("Can ve Temas Hasarı")]
     public float maxHealth = 500f;
@@ -47,30 +67,132 @@ public class BossAI : MonoBehaviour
     float currentHealth;
     bool isDead = false;
     Transform player;
-    bool isMoving = false;
-    float nextMoveTime = 0f;
-    Vector3 targetMovePosition;
     int lastAttackState = 0;
     int consecutiveAttackCount = 0;
 
+    Vector3 glideVelocity = Vector3.zero;
+    float orbitDirection = 1f;
+    bool isAttacking = false;
+
+    float bobTimer = 0f;
+    Vector3 visualBaseLocalPos;
+
+    Rigidbody rb;
+    float fixedY;
+
+    public float CurrentHealth => currentHealth;
+    public float MaxHealth => maxHealth;
+
+    void Awake()
+{
+    // boss objesi sahnede inactive başlasa bile health hazır olsun
+    currentHealth = maxHealth;
+}
+
     void Start()
     {
+        rb = GetComponent<Rigidbody>();
+
+        // Top-down fizik ayarları (duvarlardan geçmesin diye)
+        rb.useGravity = false;
+        rb.constraints = RigidbodyConstraints.FreezeRotationX
+                       | RigidbodyConstraints.FreezeRotationZ
+                       | RigidbodyConstraints.FreezePositionY;
+
+        rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+        rb.interpolation = RigidbodyInterpolation.Interpolate;
+
+        fixedY = transform.position.y;
+
         GameObject p = GameObject.FindWithTag("Player");
         if (p) player = p.transform;
 
         currentHealth = maxHealth;
-        nextMoveTime = Time.time + moveCooldown;
+        orbitDirection = Random.value > 0.5f ? 1f : -1f;
+
+        // Bob sadece görselde
+        if (visualRoot == null && anim != null) visualRoot = anim.transform;
+        if (visualRoot != null) visualBaseLocalPos = visualRoot.localPosition;
+
         StartCoroutine(AttackCycleRoutine());
+        StartCoroutine(OrbitDirectionChanger());
     }
 
     void Update()
     {
-        if (isDead || player == null) return;
+        if (isDead) return;
 
-        if (Time.time >= nextMoveTime && !isMoving)
-            StartCoroutine(GlideTowardsPlayer());
+        // Bob'u fizik objesinde değil, görsel child’da yap
+        if (visualRoot != null)
+        {
+            bobTimer += Time.deltaTime;
+            float bobY = Mathf.Sin(bobTimer * bobSpeed) * bobAmount;
+            Vector3 lp = visualBaseLocalPos;
+            lp.y += bobY;
+            visualRoot.localPosition = lp;
+        }
     }
 
+    void FixedUpdate()
+    {
+        if (isDead || player == null) return;
+
+        Vector3 targetVelocity = CalculateGlideVelocity();
+        glideVelocity = Vector3.Lerp(glideVelocity, targetVelocity, Time.fixedDeltaTime * glideSmoothing);
+
+        rb.velocity = new Vector3(glideVelocity.x, 0f, glideVelocity.z);
+
+        // Y sabit kalsın
+        Vector3 pos = rb.position;
+        pos.y = fixedY;
+        rb.position = pos;
+    }
+
+    Vector3 CalculateGlideVelocity()
+    {
+        Vector3 toPlayer = player.position - transform.position;
+        toPlayer.y = 0;
+        float distance = toPlayer.magnitude;
+        if (distance < 0.001f) return Vector3.zero;
+
+        Vector3 dirToPlayer = toPlayer.normalized;
+        Vector3 finalVelocity;
+
+        if (distance < tooCloseDistance)
+        {
+            finalVelocity = -dirToPlayer * glideSpeed * 1.8f;
+        }
+        else if (distance > tooFarDistance)
+        {
+            finalVelocity = dirToPlayer * glideSpeed * 1.5f;
+        }
+        else
+        {
+            Vector3 orbitDir = Vector3.Cross(Vector3.up, dirToPlayer) * orbitDirection;
+            float distanceDiff = distance - preferredDistance;
+            Vector3 radialAdjust = dirToPlayer * distanceDiff * 0.5f;
+            finalVelocity = (orbitDir * orbitSpeed + radialAdjust).normalized * glideSpeed;
+        }
+
+        if (isAttacking)
+            finalVelocity *= 0.3f;
+
+        return finalVelocity;
+    }
+
+    IEnumerator OrbitDirectionChanger()
+    {
+        while (!isDead)
+        {
+            float waitTime = directionChangeInterval + Random.Range(-0.5f, 1f);
+            yield return new WaitForSeconds(waitTime);
+            orbitDirection *= -1f;
+        }
+    }
+
+    // ==========================================
+    // CAN SİSTEMİ
+    // ==========================================
     public void TakeDamage(float amount)
     {
         if (isDead) return;
@@ -83,6 +205,7 @@ public class BossAI : MonoBehaviour
     {
         isDead = true;
         StopAllCoroutines();
+        rb.velocity = Vector3.zero;
         Destroy(gameObject, 0.5f);
     }
 
@@ -104,37 +227,62 @@ public class BossAI : MonoBehaviour
         }
     }
 
+    // ==========================================
+    // Projectile'lara SADECE Y inişi uygula (XZ değişmez)
+    // ==========================================
+    void ApplyDropToPlayerY(GameObject proj)
+    {
+        if (proj == null) return;
+
+        float targetY = proj.transform.position.y;
+        if (player != null)
+            targetY = player.position.y - projectileYBelowPlayer;
+
+        var drop = proj.GetComponent<ProjectileDropToY>();
+        if (drop == null) drop = proj.AddComponent<ProjectileDropToY>();
+
+        drop.Init(targetY, projectileDropSpeed, lockProjectileYAtTarget);
+    }
+
+    // ==========================================
+    // SALDIRI DÖNGÜSÜ
+    // ==========================================
     IEnumerator AttackCycleRoutine()
     {
+        yield return new WaitForSeconds(2f);
+
         while (!isDead)
         {
-            yield return new WaitForSeconds(2f);
-
             int state;
             do
             {
-                state = Random.Range(1, 5);
+                state = Random.Range(1, 4); // 1, 2 ve 3
             }
             while (state == lastAttackState && consecutiveAttackCount >= 2);
 
-            if (state == lastAttackState)
-                consecutiveAttackCount++;
+            if (state == lastAttackState) consecutiveAttackCount++;
             else
             {
                 lastAttackState = state;
                 consecutiveAttackCount = 1;
             }
 
+            isAttacking = true;
+
             if (state == 1) yield return StartCoroutine(State1_OctopusAttack());
             else if (state == 2) yield return StartCoroutine(State2_BurstAttack());
             else if (state == 3) yield return StartCoroutine(State3_SpawnEnemies());
-            else if (state == 4) yield return StartCoroutine(State4_DashAttack());
+
+            isAttacking = false;
+            yield return new WaitForSeconds(1.5f);
         }
     }
 
+    // ==========================================
+    // STATE 1 — AHTAPOT
+    // ==========================================
     IEnumerator State1_OctopusAttack()
     {
-        if (anim != null) anim.SetTrigger("PreSpiral");
         yield return new WaitForSeconds(1f);
 
         for (int wave = 0; wave < octopusWaves; wave++)
@@ -153,24 +301,37 @@ public class BossAI : MonoBehaviour
     void FireOctopusWave(float angleOffset)
     {
         if (!electricBallPrefab || !firePoint) return;
-        float angleStep = 360f / tentacleCount;
+
+        float angleStep = 360f / Mathf.Max(1, tentacleCount);
+
         for (int i = 0; i < tentacleCount; i++)
         {
             float angle = i * angleStep + angleOffset;
-            Vector3 fireDir = Quaternion.Euler(0, angle, 0) * Vector3.forward;
+            float rad = angle * Mathf.Deg2Rad;
+
+            // XZ yönü: ahtapot pattern (player'a bakma yok)
+            Vector3 fireDir = new Vector3(Mathf.Sin(rad), 0f, Mathf.Cos(rad));
+
             GameObject ball = Instantiate(electricBallPrefab, firePoint.position, Quaternion.identity);
-            Rigidbody rb = ball.GetComponent<Rigidbody>();
-            if (rb)
+
+            // SADECE Y indir
+            ApplyDropToPlayerY(ball);
+
+            Rigidbody prb = ball.GetComponent<Rigidbody>();
+            if (prb == null) prb = ball.GetComponentInChildren<Rigidbody>();
+            if (prb)
             {
-                rb.useGravity = false;
-                rb.velocity = fireDir * 15f;
+                prb.useGravity = false;
+                prb.velocity = fireDir * octopusBulletSpeed; // XZ hız
             }
         }
     }
 
+    // ==========================================
+    // STATE 2 — SERİ ATIŞ
+    // ==========================================
     IEnumerator State2_BurstAttack()
     {
-        if (anim != null) anim.SetTrigger("PreBurst");
         yield return new WaitForSeconds(1f);
 
         float timer = 0f;
@@ -189,22 +350,34 @@ public class BossAI : MonoBehaviour
     void FireAimedProjectile()
     {
         if (!burstProjectilePrefab || !firePoint || player == null) return;
+
+        // Bu state zaten XZ'de player'a nişanlı. (Sadece Y inişi ekliyoruz.)
         Vector3 aimDir = (player.position - firePoint.position);
         aimDir.y = 0f;
-        aimDir = aimDir.normalized;
+        if (aimDir.sqrMagnitude < 0.001f) return;
+        aimDir.Normalize();
+
         GameObject proj = Instantiate(burstProjectilePrefab, firePoint.position, Quaternion.identity);
-        Rigidbody rb = proj.GetComponent<Rigidbody>();
-        if (rb)
+
+        // SADECE Y indir (XZ yönü değişmez)
+        ApplyDropToPlayerY(proj);
+
+        Rigidbody prb = proj.GetComponent<Rigidbody>();
+        if (prb == null) prb = proj.GetComponentInChildren<Rigidbody>();
+        if (prb)
         {
-            rb.useGravity = false;
-            rb.velocity = aimDir * 25f;
+            prb.useGravity = false;
+            prb.velocity = aimDir * burstBulletSpeed;
         }
     }
 
+    // ==========================================
+    // STATE 3 — DÜŞMAN ÇAĞIRMA
+    // ==========================================
     IEnumerator State3_SpawnEnemies()
     {
-        if (anim != null) anim.SetTrigger("PreSpawn");
-        yield return new WaitForSeconds(1f);
+        if (anim != null) anim.SetTrigger("HandUp");
+        yield return new WaitForSeconds(1.8f);
 
         if (minionPrefabs == null || minionPrefabs.Length == 0) yield break;
 
@@ -212,100 +385,19 @@ public class BossAI : MonoBehaviour
         {
             Vector3 spawnPos = (spawnPoints != null && spawnPoints.Length > 0)
                 ? spawnPoints[i % spawnPoints.Length].position
-                : transform.position + Random.insideUnitSphere * 3f;
+                : transform.position + new Vector3(Random.Range(-4f, 4f), 0f, Random.Range(-4f, 4f));
 
-            spawnPos.y = transform.position.y;
+            spawnPos.y = fixedY;
 
             int randomIndex = Random.Range(0, minionPrefabs.Length);
             if (minionPrefabs[randomIndex] != null)
                 Instantiate(minionPrefabs[randomIndex], spawnPos, Quaternion.identity);
-        }
-    }
 
-    IEnumerator State4_DashAttack()
-    {
-        if (anim != null) anim.SetTrigger("PreDash");
-        yield return new WaitForSeconds(chargeTime);
-
-        if (player == null) yield break;
-
-        Vector3 startPos = transform.position;
-        Vector3 playerPos = player.position;
-        playerPos.y = startPos.y;
-
-        Vector3 dashDir = (playerPos - startPos).normalized;
-        Vector3 targetPos = playerPos + (dashDir * dashOvershoot);
-        float dashDistance = Vector3.Distance(startPos, targetPos);
-
-        if (dashDistance < 2f) yield break;
-
-        float t = 0;
-        int shotsFired = 0;
-        isMoving = true;
-
-        while (t < 1f)
-        {
-            t += (Time.deltaTime * dashSpeed) / dashDistance;
-            transform.position = Vector3.Lerp(startPos, targetPos, t);
-
-            float progressThreshold = (shotsFired + 1f) / (shotsDuringDash + 1f);
-            if (t >= progressThreshold && shotsFired < shotsDuringDash)
-            {
-                FireDashProjectiles(dashDir);
-                shotsFired++;
-            }
-
-            yield return null;
+            yield return new WaitForSeconds(0.2f);
         }
 
-        isMoving = false;
-    }
-
-    void FireDashProjectiles(Vector3 dashDirection)
-    {
-        if (!burstProjectilePrefab || !firePoint) return;
-
-        Vector3 backwardDir = -dashDirection;
-
-        Vector3 rightBackDir = Quaternion.Euler(0, dashDiagonalAngle, 0) * backwardDir;
-        GameObject rightProj = Instantiate(burstProjectilePrefab, firePoint.position, Quaternion.identity);
-        Rigidbody rightRb = rightProj.GetComponent<Rigidbody>();
-        if (rightRb)
-        {
-            rightRb.useGravity = false;
-            rightRb.velocity = rightBackDir * 20f;
-        }
-
-        Vector3 leftBackDir = Quaternion.Euler(0, -dashDiagonalAngle, 0) * backwardDir;
-        GameObject leftProj = Instantiate(burstProjectilePrefab, firePoint.position, Quaternion.identity);
-        Rigidbody leftRb = leftProj.GetComponent<Rigidbody>();
-        if (leftRb)
-        {
-            leftRb.useGravity = false;
-            leftRb.velocity = leftBackDir * 20f;
-        }
-    }
-
-    IEnumerator GlideTowardsPlayer()
-    {
-        if (player == null) yield break;
-        isMoving = true;
-        if (anim != null) anim.SetTrigger("Move");
-
-        Vector3 startPos = transform.position;
-        Vector3 dirToPlayer = (player.position - transform.position).normalized;
-        dirToPlayer.y = 0;
-        targetMovePosition = startPos + dirToPlayer * moveDistance;
-
-        float t = 0;
-        while (t < 1f)
-        {
-            t += Time.deltaTime * moveSpeed;
-            transform.position = Vector3.Lerp(startPos, targetMovePosition, t);
-            yield return null;
-        }
-
-        nextMoveTime = Time.time + moveCooldown;
-        isMoving = false;
+        float remaining = 1.8f - (minionCount * 0.2f);
+        if (remaining > 0f)
+            yield return new WaitForSeconds(remaining);
     }
 }
