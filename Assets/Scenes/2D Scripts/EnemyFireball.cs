@@ -5,6 +5,7 @@ public class EnemyFireball : MonoBehaviour
     public GameObject fireballPrefab;
     public Transform firePoint;
     public float fireInterval = 3f;
+    public float fireballSpeed = 10f; // Merminin gidiþ hýzý
 
     [Header("Animation")]
     public Animator anim;
@@ -35,6 +36,15 @@ public class EnemyFireball : MonoBehaviour
         if (anim != null)
             anim.SetTrigger(fireAnimTrigger);
 
-        Instantiate(fireballPrefab, firePoint.position, Quaternion.identity);
+        // Mermiyi firePoint'in açýsýyla yarat
+        GameObject fireball = Instantiate(fireballPrefab, firePoint.position, firePoint.rotation);
+
+        Rigidbody2D rb = fireball.GetComponent<Rigidbody2D>();
+        if (rb != null)
+        {
+            // firePoint'in baktýðý X ekseni yönüne (dümdüz ileri) kuvvet uygula!
+            // Düþman saða-sola döndüðünde (Scale X deðiþtiðinde) bu yön de otomatik deðiþir.
+            rb.velocity = firePoint.right * fireballSpeed;
+        }
     }
 }
