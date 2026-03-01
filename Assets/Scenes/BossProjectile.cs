@@ -17,9 +17,14 @@ public class BossProjectile : MonoBehaviour
 
         if (other.CompareTag("Player"))
         {
-            // Senin PlayerHealth3D'ni kullan
+            // BURASI DEĞİŞTİ: Artık senin PlayerHealth3D scriptini arıyor!
             PlayerHealth3D ph = other.GetComponent<PlayerHealth3D>();
-            if (ph) ph.TakeDamage(damage);
+
+            if (ph != null)
+            {
+                ph.TakeDamage(damage);
+                Debug.Log("Oyuncuya vuruldu! Hasar: " + damage);
+            }
         }
 
         if (hitEffect != null)
