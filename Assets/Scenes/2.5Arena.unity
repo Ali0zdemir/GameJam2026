@@ -348,6 +348,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   healthData: {fileID: 11400000, guid: b90573808640d0243b09e62bde558006, type: 2}
   restartHealth: 100
+  restartPoint: {fileID: 0}
   invincibilityDuration: 1
 --- !u!114 &157013685
 MonoBehaviour:
@@ -371,6 +372,11 @@ MonoBehaviour:
   dashDuration: 0.15
   dashCooldown: 0.25
   fallMultiplier: 3
+  footstepSounds: []
+  footstepVolume: 0.8
+  footstepInterval: 4
+  audioSource: {fileID: 0}
+  footstepTimer: 0
 --- !u!54 &157013686
 Rigidbody:
   m_ObjectHideFlags: 0
