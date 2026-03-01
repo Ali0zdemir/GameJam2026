@@ -15,6 +15,10 @@ public class WalkRun2D_Rigidbody : MonoBehaviour
     public float fallMultiplier = 3f;
     public float lowJumpMultiplier = 2f;
 
+    [Header("Coyote Time & Jump Buffer")]
+    public float coyoteTime = 0.12f;
+    public float jumpBufferTime = 0.12f;
+
     [Header("Dash")]
     public float dashSpeed = 20f;
     public float dashDuration = 0.15f;
@@ -40,7 +44,7 @@ public class WalkRun2D_Rigidbody : MonoBehaviour
     public float invincibilityDuration = 1.5f;
 
     [Header("Knockback")]
-    public float knockbackDuration = 0.2f;
+    public float knockbackDuration = 0.5f;
 
     [Header("Melee Attack")]
     public Transform attackPoint;
@@ -50,6 +54,7 @@ public class WalkRun2D_Rigidbody : MonoBehaviour
 
     [Header("Animation")]
     public Animator anim;
+    public float animBlendSpeed = 10f;
 
     private float nextAttackTime = 0f;
     private bool isFacingRight = true;
@@ -57,6 +62,9 @@ public class WalkRun2D_Rigidbody : MonoBehaviour
     Rigidbody2D rb;
     float inputX;
     bool isGrounded;
+
+    float coyoteTimer;
+    float jumpBufferTimer;
 
     bool isDashing;
     float dashTimer;
@@ -75,6 +83,9 @@ public class WalkRun2D_Rigidbody : MonoBehaviour
     bool isWallSliding;
     float currentWallGrabTimer;
     float currentAirControlTimer;
+
+    float smoothSpeed;
+    float smoothVelocityY;
 
     void Awake()
     {
@@ -97,8 +108,11 @@ public class WalkRun2D_Rigidbody : MonoBehaviour
 
         inputX = Input.GetAxisRaw("Horizontal");
 
-        if (inputX > 0 && !isFacingRight) Flip();
-        else if (inputX < 0 && isFacingRight) Flip();
+        if (!isWallSliding)
+        {
+            if (inputX > 0 && !isFacingRight) Flip();
+            else if (inputX < 0 && isFacingRight) Flip();
+        }
 
         if (Time.time >= nextAttackTime)
         {
@@ -120,6 +134,16 @@ public class WalkRun2D_Rigidbody : MonoBehaviour
         if (dashCooldownTimer > 0f)
             dashCooldownTimer -= Time.deltaTime;
 
+        if (isGrounded)
+            coyoteTimer = coyoteTime;
+        else
+            coyoteTimer -= Time.deltaTime;
+
+        if (Input.GetKeyDown(KeyCode.Space))
+            jumpBufferTimer = jumpBufferTime;
+        else
+            jumpBufferTimer -= Time.deltaTime;
+
         CheckWallSliding();
         HandleJump();
         UpdateAnimations();
@@ -132,10 +156,13 @@ public class WalkRun2D_Rigidbody : MonoBehaviour
     {
         if (anim == null) return;
 
+        smoothSpeed = Mathf.Lerp(smoothSpeed, Mathf.Abs(inputX), animBlendSpeed * Time.deltaTime);
+
         anim.SetBool("isGrounded", isGrounded);
-        anim.SetBool("isWallSliding", isWallSliding);
-        anim.SetFloat("velocityY", rb.velocity.y);
-        anim.SetFloat("speed", Mathf.Abs(inputX));
+        anim.SetFloat("speed", smoothSpeed);
+
+        bool wallSlideAnim = isWallSliding && !isGrounded;
+        anim.SetBool("isWallSliding", wallSlideAnim);
     }
 
     void FixedUpdate()
@@ -205,22 +232,25 @@ public class WalkRun2D_Rigidbody : MonoBehaviour
 
     void HandleJump()
     {
-        if (enableJump && Input.GetKeyDown(KeyCode.Space) && isWalled && !isGrounded)
+        if (enableJump && jumpBufferTimer > 0f && isWalled && !isGrounded)
         {
             isWallSliding = false;
             int jumpDir = -wallDirection;
             rb.velocity = Vector2.zero;
             rb.velocity = new Vector2(jumpDir * wallJumpForce.x, wallJumpForce.y);
             currentAirControlTimer = airControlLockTime;
+            jumpBufferTimer = 0f;
 
             if (jumpDir > 0 && !isFacingRight) Flip();
             else if (jumpDir < 0 && isFacingRight) Flip();
             return;
         }
 
-        if (enableJump && Input.GetKeyDown(KeyCode.Space) && isGrounded)
+        if (enableJump && jumpBufferTimer > 0f && coyoteTimer > 0f)
         {
             PerformJump();
+            jumpBufferTimer = 0f;
+            coyoteTimer = 0f;
             return;
         }
 
@@ -279,15 +309,22 @@ public class WalkRun2D_Rigidbody : MonoBehaviour
     }
 
     void OnCollisionEnter2D(Collision2D col)
+{
+    if (col.gameObject.CompareTag(groundTag)) { isGrounded = true; if (usedOrbs.Count > 0) ResetOrbState(); }
+    if (col.gameObject.CompareTag(wallTag))
     {
-        if (col.gameObject.CompareTag(groundTag)) { isGrounded = true; if (usedOrbs.Count > 0) ResetOrbState(); }
-        if (col.gameObject.CompareTag(wallTag))
-        {
-            isWalled = true;
-            float normalX = col.GetContact(0).normal.x;
-            wallDirection = normalX < -0.5f ? 1 : -1;
-        }
+        isWalled = true;
+        float normalX = col.GetContact(0).normal.x;
+        wallDirection = normalX < -0.5f ? 1 : -1;
     }
+
+    // Geçiş noktasına çarpınca fade
+    if (col.gameObject.CompareTag("Transition"))
+    {
+        if (ScreenFader.Instance != null)
+            ScreenFader.Instance.FadeOutIn(0.5f, 1.5f);
+    }
+}
 
     void OnCollisionStay2D(Collision2D col)
     {
