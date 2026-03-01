@@ -12,8 +12,6 @@ public class WalkRun2D_Rigidbody : MonoBehaviour
     [Header("Jump")]
     public bool enableJump = true;
     public float jumpForce = 12f;
-    public float fallMultiplier = 3f;
-    public float lowJumpMultiplier = 2f;
 
     [Header("Coyote Time & Jump Buffer")]
     public float coyoteTime = 0.12f;
@@ -114,12 +112,13 @@ public class WalkRun2D_Rigidbody : MonoBehaviour
             else if (inputX < 0 && isFacingRight) Flip();
         }
 
+        // SALDIRI KONTROLÜ (BEKLEME SÜRESİ KORUMASI)
         if (Time.time >= nextAttackTime)
         {
             if (Input.GetMouseButtonDown(0))
             {
-                Attack();
-                nextAttackTime = Time.time + 1f / attackRate;
+                Attack(); // Süre dolduysa vur ve animasyonu oynat
+                nextAttackTime = Time.time + 1f / attackRate; // Yeniden vurabilmek için süreyi kilitle
             }
         }
 
@@ -188,11 +187,6 @@ public class WalkRun2D_Rigidbody : MonoBehaviour
             float newX = Mathf.MoveTowards(rb.velocity.x, inputX * walkSpeed, airAcceleration * Time.fixedDeltaTime);
             rb.velocity = new Vector2(newX, rb.velocity.y);
         }
-
-        if (rb.velocity.y < 0f)
-            rb.velocity += Vector2.up * Physics2D.gravity.y * (fallMultiplier - 1f) * Time.fixedDeltaTime;
-        else if (rb.velocity.y > 0f && !Input.GetKey(KeyCode.Space))
-            rb.velocity += Vector2.up * Physics2D.gravity.y * (lowJumpMultiplier - 1f) * Time.fixedDeltaTime;
     }
 
     void CheckWallSliding()
@@ -309,22 +303,21 @@ public class WalkRun2D_Rigidbody : MonoBehaviour
     }
 
     void OnCollisionEnter2D(Collision2D col)
-{
-    if (col.gameObject.CompareTag(groundTag)) { isGrounded = true; if (usedOrbs.Count > 0) ResetOrbState(); }
-    if (col.gameObject.CompareTag(wallTag))
     {
-        isWalled = true;
-        float normalX = col.GetContact(0).normal.x;
-        wallDirection = normalX < -0.5f ? 1 : -1;
-    }
+        if (col.gameObject.CompareTag(groundTag)) { isGrounded = true; if (usedOrbs.Count > 0) ResetOrbState(); }
+        if (col.gameObject.CompareTag(wallTag))
+        {
+            isWalled = true;
+            float normalX = col.GetContact(0).normal.x;
+            wallDirection = normalX < -0.5f ? 1 : -1;
+        }
 
-    // Geçiş noktasına çarpınca fade
-    if (col.gameObject.CompareTag("Transition"))
-    {
-        if (ScreenFader.Instance != null)
-            ScreenFader.Instance.FadeOutIn(0.5f, 1.5f);
+        if (col.gameObject.CompareTag("Transition"))
+        {
+            if (ScreenFader.Instance != null)
+                ScreenFader.Instance.FadeOutIn(0.5f, 1.5f);
+        }
     }
-}
 
     void OnCollisionStay2D(Collision2D col)
     {
@@ -352,6 +345,11 @@ public class WalkRun2D_Rigidbody : MonoBehaviour
     void Attack()
     {
         if (attackPoint == null) return;
+
+        // ANİMASYONU TETİKLE
+        if (anim != null)
+            anim.SetTrigger("Attack");
+
         Collider2D[] hitEnemies = Physics2D.OverlapCircleAll(attackPoint.position, attackRange, enemyLayers);
         foreach (Collider2D enemy in hitEnemies)
         {
